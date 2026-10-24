@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Encore DJ Marketplace"
+description = "A two-sided marketplace where hosts discover DJs and manage event booking requests, and DJs present their work and manage their availability. Supabase-backed authentication and marketplace data; Stripe Connect payments activate only after the account is connected."
+version = "1.0.0"
+id = "artifacts/dj-marketplace"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 24071
+
+[services.development]
+run = "pnpm --filter @workspace/dj-marketplace run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/dj-marketplace", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/dj-marketplace/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "24071"
+BASE_PATH = "/"
