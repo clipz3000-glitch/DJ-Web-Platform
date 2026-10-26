@@ -14,6 +14,7 @@ import {
   useAuth,
 } from '@/lib/auth-context';
 import {
+  type Booking,
   cancelBooking,
   completeBooking,
   createReview,
@@ -632,21 +633,24 @@ function Admin() {
   const enabled=hasSupabase&&auth.role==='admin';
   const users=useQuery({queryKey:['admin','profiles'],queryFn:listAdminProfiles,enabled});
   const bookings=useQuery({queryKey:['admin','bookings'],queryFn:listAdminBookings,enabled});
+  const djs=useQuery({queryKey:['admin','djs'],queryFn:listAdminDjs,enabled});
   const payments=useQuery({queryKey:['admin','payments'],queryFn:()=>listMyPayments(auth.user!.id,'admin'),enabled});
   const settings=useQuery({queryKey:['admin','settings'],queryFn:getPlatformSettings,enabled});
   const [commission,setCommission]=useState('');
   const [notice,setNotice]=useState('');
   useEffect(()=>{if(settings.data?.commission_basis_points!==undefined&&settings.data?.commission_basis_points!==null)setCommission(String(settings.data.commission_basis_points/100));},[settings.data?.commission_basis_points]);
   const saveCommission=useMutation({mutationFn:()=>savePlatformCommission(Math.round(Number(commission)*100)),onSuccess:(row)=>{setNotice(`Commission saved at ${(row.commission_basis_points/100).toFixed(2)}%.`);void queryClient.invalidateQueries({queryKey:['admin','settings']});}});
+  const verificationMutation=useMutation({mutationFn:({djId,status}:{djId:string;status:'unverified'|'pending'|'verified'|'rejected'})=>setDjVerification(djId,status),onSuccess:()=>{void queryClient.invalidateQueries({queryKey:['admin','djs']});void queryClient.invalidateQueries({queryKey:['public-djs']});void queryClient.invalidateQueries({queryKey:['dj-profile']});}});
   if(!hasSupabase)return <Layout><div className="mx-auto max-w-[1000px] px-5 py-12 md:px-9"><div className="soft-card"><Notice title="Admin data is unavailable" description="Connect Supabase and apply the database migration before loading admin records." icon={<ShieldCheck size={22}/>} /></div></div></Layout>;
   if(auth.loading)return <Layout><div className="mx-auto py-20 text-center text-sm text-[#718078]">Checking admin access…</div></Layout>;
   if(auth.role!=='admin')return <Layout><div className="mx-auto max-w-[1000px] px-5 py-12 md:px-9"><div className="soft-card"><Notice title={auth.user?'Admin access is restricted':'Sign in to continue'} description="Administrator access is enforced using the Supabase app_metadata role claim and database row-level security. This page does not grant permissions." icon={<LockKeyhole size={22}/>} /></div></div></Layout>;
-  const error=users.error||bookings.error||payments.error||settings.error||saveCommission.error;
+  const error=users.error||bookings.error||djs.error||payments.error||settings.error||saveCommission.error||verificationMutation.error;
   return <Layout><div className="mx-auto max-w-[1200px] px-5 py-12 md:px-9"><div className="mb-6 flex items-center gap-3"><ShieldCheck className="text-[#42685a]"/><p className="eyebrow">Restricted area</p></div><h1 className="serif text-4xl font-semibold text-[#29483e]">Admin console</h1><p className="mt-2 text-sm text-[#718078]">Administrative records are protected by Supabase authorization rules.</p>
     {error&&<div className="mt-5 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800" role="alert">{errorMessage(error)}</div>}
     <div className="mt-7 grid gap-4 sm:grid-cols-3"><div className="soft-card p-5"><p className="eyebrow">Accounts</p><p className="serif mt-2 text-3xl text-[#29483e]">{users.data?.length??'—'}</p></div><div className="soft-card p-5"><p className="eyebrow">Bookings</p><p className="serif mt-2 text-3xl text-[#29483e]">{bookings.data?.length??'—'}</p></div><div className="soft-card p-5"><p className="eyebrow">Payment records</p><p className="serif mt-2 text-3xl text-[#29483e]">{payments.data?.length??'—'}</p><p className="mt-1 text-xs text-[#829087]">Revenue unavailable until Stripe is connected</p></div></div>
     <div className="mt-5 grid gap-5 lg:grid-cols-[.8fr_1.2fr]"><section className="soft-card p-5"><p className="eyebrow">Platform settings</p><h2 className="serif mt-1 text-2xl text-[#29483e]">Commission</h2><p className="mt-2 text-sm leading-6 text-[#718078]">The rate is stored centrally in basis points. No charge is calculated until Stripe Connect is configured.</p>{notice&&<p className="mt-3 text-sm text-[#3c684f]" role="status">{notice}</p>}<form className="mt-4 flex items-end gap-3" onSubmit={e=>{e.preventDefault();if(Number(commission)>=0&&Number(commission)<=100)saveCommission.mutate();}}><label className="flex-1"><span className="label">Commission percentage</span><input className="field" type="number" min="0" max="100" step="0.01" value={commission} onChange={e=>setCommission(e.target.value)} required data-testid="input-commission"/></label><button className="btn btn-primary" type="submit" disabled={saveCommission.isPending} data-testid="button-save-commission">{saveCommission.isPending?'Saving…':'Save'}</button></form>{settings.isLoading&&<p className="mt-2 text-xs text-[#718078]">Loading current setting…</p>}</section>
       <section className="soft-card overflow-hidden"><div className="border-b border-[#ece8dd] p-5"><p className="eyebrow">Accounts</p><h2 className="serif mt-1 text-2xl text-[#29483e]">Recent users</h2></div>{users.isLoading?<p className="p-5 text-sm text-[#718078]">Loading users…</p>:users.data?.length?<div className="max-h-[400px] divide-y divide-[#ece8dd] overflow-y-auto">{users.data.map(user=><div key={user.id} className="flex justify-between gap-3 p-4 text-sm" data-testid={`admin-user-${user.id}`}><div><p className="font-bold text-[#35584b]">{user.display_name||'Unnamed account'}</p><p className="mt-1 text-xs text-[#718078]">{user.city||'Location not set'}</p></div><span className="rounded-full bg-[#e8eee6] px-3 py-1 text-xs font-bold capitalize text-[#42685a]">{user.role}</span></div>)}</div>:<Notice title="No users to show" description="New accounts will appear here." icon={<Disc3 size={22}/>} />}</section></div>
+    <section className="mt-5 soft-card overflow-hidden"><div className="border-b border-[#ece8dd] p-5"><p className="eyebrow">DJ review</p><h2 className="serif mt-1 text-2xl text-[#29483e]">Verification queue</h2><p className="mt-1 text-xs text-[#718078]">Only verified, active DJs appear in public search.</p></div>{djs.isLoading?<p className="p-5 text-sm text-[#718078]">Loading DJ profiles…</p>:djs.data?.length?<div className="divide-y divide-[#ece8dd]">{djs.data.map(dj=><div key={dj.profile_id} className="flex flex-wrap items-center justify-between gap-3 p-4"><div><p className="font-bold text-[#35584b]">{dj.stage_name}</p><p className="mt-1 text-xs capitalize text-[#718078]">{dj.verification_status} · {dj.is_active?'Active':'Inactive'}</p></div><label className="w-full max-w-52"><span className="sr-only">Verification status for {dj.stage_name}</span><select className="field" value={dj.verification_status} disabled={verificationMutation.isPending} onChange={e=>verificationMutation.mutate({djId:dj.profile_id,status:e.target.value as 'unverified'|'pending'|'verified'|'rejected'})} data-testid={`select-dj-verification-${dj.profile_id}`}><option value="unverified">Unverified</option><option value="pending">Pending review</option><option value="verified">Verified</option><option value="rejected">Rejected</option></select></label></div>)}</div>:<Notice title="No DJ profiles yet" description="DJ profiles will appear here after onboarding." icon={<Headphones size={22}/>} />}</section>
     <section className="mt-5 soft-card overflow-hidden"><div className="border-b border-[#ece8dd] p-5"><p className="eyebrow">Booking oversight</p><h2 className="serif mt-1 text-2xl text-[#29483e]">Recent bookings</h2></div>{bookings.isLoading?<p className="p-5 text-sm text-[#718078]">Loading bookings…</p>:bookings.data?.length?<div className="divide-y divide-[#ece8dd]">{bookings.data.map(b=><div key={b.id} className="flex flex-wrap items-center justify-between gap-3 p-4 text-sm"><span className="font-bold text-[#35584b]">{b.event_type} · {b.venue}</span><span className="text-xs capitalize text-[#718078]">{b.status.replaceAll('_',' ')} · {new Intl.DateTimeFormat('en-GB',{dateStyle:'medium'}).format(new Date(b.created_at))}</span></div>)}</div>:<Notice title="No booking activity yet" description="Booking records will appear as hosts submit requests." icon={<CalendarDays size={22}/>} />}</section>
   </div></Layout>;
 }
@@ -665,14 +669,38 @@ function NotFound() {
   return <Layout><div className="mx-auto flex min-h-[62vh] max-w-3xl flex-col items-center justify-center px-5 text-center"><p className="eyebrow">404 / Off the setlist</p><h1 className="serif mt-4 text-6xl font-semibold tracking-tight text-[#29483e]">That page missed a beat.</h1><p className="mt-4 max-w-md text-sm leading-6 text-[#718078]">The link may have moved, or this page may not exist. Let’s get you back to the good stuff.</p><a href="/" className="btn btn-primary mt-7"><ArrowLeft size={15}/>Back to Encore</a></div></Layout>;
 }
 
-function StartupSplash() {
-  return <main className="grid min-h-screen place-items-center bg-[#f8f6ef]" aria-label="Loading Encore"><div className="text-center" role="status"><div className="mx-auto grid h-14 w-14 animate-pulse place-items-center rounded-2xl bg-[#285a4d] text-[#f8f6ef]"><AudioLines size={25}/></div><p className="mt-4 text-xl font-extrabold tracking-[-.07em] text-[#23473c]">encore<span className="text-[#e77c5a]">.</span></p><p className="mt-1 text-xs text-[#718078]">Getting things ready…</p></div></main>;
+function StartupSplash({exiting=false}:{exiting?:boolean}) {
+  return <main className={`fixed inset-0 z-[100] grid place-items-center overflow-hidden bg-[#f8f6ef] transition-opacity duration-[380ms] ${exiting?'pointer-events-none opacity-0':'opacity-100'}`} aria-label="Loading Encore">
+    <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_45%,rgba(206,221,202,.62),transparent_38%),radial-gradient(ellipse_at_18%_85%,rgba(231,124,90,.12),transparent_34%)]"/>
+    <div className="absolute left-1/2 top-1/2 h-[min(76vw,34rem)] w-[min(76vw,34rem)] -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#b7c9b6]/40"/>
+    <div className="absolute left-1/2 top-1/2 h-[min(60vw,27rem)] w-[min(60vw,27rem)] -translate-x-1/2 -translate-y-1/2 rounded-full border border-dashed border-[#d3b7a5]/55"/>
+    <div className="relative flex flex-col items-center text-center" role="status">
+      <div className="splash-mark relative grid h-[86px] w-[86px] place-items-center rounded-[28px] bg-[#285a4d] text-[#f8f6ef] shadow-[0_18px_55px_rgba(40,90,77,.25)]">
+        <div className="absolute -inset-3 rounded-[34px] border border-[#739581]/45"/>
+        <AudioLines size={35} strokeWidth={1.8}/>
+        <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-[#e77c5a] ring-4 ring-[#f8f6ef]"/>
+      </div>
+      <p className="splash-wordmark mt-7 text-[2.65rem] font-extrabold tracking-[-.09em] text-[#23473c]">encore<span className="text-[#e77c5a]">.</span></p>
+      <p className="splash-caption mt-1 text-[11px] font-bold uppercase tracking-[.24em] text-[#718078]">Find your sound</p>
+      <div className="mt-7 flex h-7 items-end gap-[5px]" aria-hidden="true">{[12,22,16,28,18,25,13,21,10].map((height,index)=><span key={index} className="splash-bar w-[3px] rounded-full bg-[#e17b59]" style={{height,animationDelay:`${index*80}ms`}}/>)}</div>
+      <p className="mt-3 text-xs text-[#88938b]">Setting the scene…</p>
+    </div>
+  </main>;
 }
 
 function Router() {
   const auth=useAuth();
-  if(auth.loading)return <RoutedErrorBoundary><StartupSplash/></RoutedErrorBoundary>;
-  return <RoutedErrorBoundary><Switch>
+  const [splashVisible,setSplashVisible]=useState(true);
+  const [splashExiting,setSplashExiting]=useState(false);
+  useEffect(()=>{
+    if(auth.loading)return;
+    setSplashExiting(false);
+    const exitTimer=window.setTimeout(()=>setSplashExiting(true),420);
+    const hideTimer=window.setTimeout(()=>setSplashVisible(false),820);
+    return ()=>{window.clearTimeout(exitTimer);window.clearTimeout(hideTimer);};
+  },[auth.loading]);
+  return <RoutedErrorBoundary>
+    {!auth.loading&&<Switch>
     <Route path="/" component={Home}/>
     <Route path="/djs" component={Browse}/>
     <Route path="/djs/:id" component={DJProfile}/>
@@ -698,7 +726,9 @@ function Router() {
     <Route path="/privacy" component={()=><Legal path="/privacy"/>}/>
     <Route path="/cancellation-policy" component={()=><Legal path="/cancellation-policy"/>}/>
     <Route component={NotFound}/>
-  </Switch></RoutedErrorBoundary>;
+  </Switch>}
+  {(auth.loading||splashVisible)&&<StartupSplash exiting={splashExiting&&!auth.loading}/>}
+  </RoutedErrorBoundary>;
 }
 
 function App() {

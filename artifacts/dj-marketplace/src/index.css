@@ -5,6 +5,45 @@
 
 @custom-variant dark (&:is(.dark *));
 
+@keyframes encore-splash-mark {
+  0% { opacity: 0; transform: translateY(14px) scale(.82) rotate(-7deg); }
+  72% { opacity: 1; transform: translateY(-2px) scale(1.03) rotate(1deg); }
+  100% { opacity: 1; transform: translateY(0) scale(1) rotate(0); }
+}
+
+@keyframes encore-splash-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+@keyframes encore-splash-copy {
+  0% { opacity: 0; transform: translateY(10px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes encore-splash-wave {
+  0%, 100% { transform: scaleY(.42); opacity: .48; }
+  50% { transform: scaleY(1); opacity: 1; }
+}
+
+.splash-mark {
+  animation: encore-splash-mark 680ms cubic-bezier(.2,.8,.2,1) both,
+    encore-splash-float 2.8s 680ms ease-in-out infinite;
+}
+
+.splash-wordmark {
+  animation: encore-splash-copy 520ms 100ms cubic-bezier(.2,.8,.2,1) both;
+}
+
+.splash-caption {
+  animation: encore-splash-copy 520ms 190ms cubic-bezier(.2,.8,.2,1) both;
+}
+
+.splash-bar {
+  animation: encore-splash-wave 760ms ease-in-out infinite;
+  transform-origin: center bottom;
+}
+
 @theme inline {
   --color-background: hsl(var(--background));
   --color-foreground: hsl(var(--foreground));

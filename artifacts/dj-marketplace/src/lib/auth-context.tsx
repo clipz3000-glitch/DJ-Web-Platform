@@ -108,23 +108,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    void supabase
-      .from('profiles')
-      .select('id, role, display_name, avatar_url, city')
-      .eq('id', session.user.id)
-      .maybeSingle()
-      .then(({ data, error: profileError }) => {
+    void (async () => {
+      try {
+        const { data, error: profileError } = await supabase
+          .from('profiles')
+          .select('id, role, display_name, avatar_url, city')
+          .eq('id', session.user.id)
+          .maybeSingle();
         if (!mounted) return;
         if (profileError) setError(profileError.message);
         setProfile((data as MarketplaceProfile | null) ?? null);
         setLoading(false);
-      })
-      .catch((profileError: unknown) => {
+      } catch (profileError) {
         if (!mounted) return;
         setError(errorMessage(profileError));
         setProfile(null);
         setLoading(false);
-      });
+      }
+    })();
 
     return () => {
       mounted = false;

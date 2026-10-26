@@ -1,0 +1,1 @@
+- [Marketplace integration choices](marketplace-integrations.md) — Keep Supabase; don’t simulate Stripe payments or enable checkout before it is connected.
