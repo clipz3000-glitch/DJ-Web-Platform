@@ -26,9 +26,63 @@
   50% { transform: scaleY(1); opacity: 1; }
 }
 
+@keyframes encore-splash-orbit {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes encore-splash-orbit-reverse {
+  to { transform: rotate(-360deg); }
+}
+
+@keyframes encore-splash-halo {
+  0% { transform: scale(.92); opacity: .8; }
+  100% { transform: scale(1.28); opacity: 0; }
+}
+
+@keyframes encore-splash-glow {
+  0%, 100% { box-shadow: 0 18px 55px rgba(40,90,77,.22); }
+  50% { box-shadow: 0 22px 68px rgba(40,90,77,.34), 0 0 35px rgba(231,124,90,.12); }
+}
+
 .splash-mark {
   animation: encore-splash-mark 680ms cubic-bezier(.2,.8,.2,1) both,
-    encore-splash-float 2.8s 680ms ease-in-out infinite;
+    encore-splash-float 2.8s 680ms ease-in-out infinite,
+    encore-splash-glow 2.4s 680ms ease-in-out infinite;
+}
+
+.splash-orbit {
+  animation: encore-splash-orbit 22s linear infinite;
+}
+
+.splash-orbit-reverse {
+  animation-name: encore-splash-orbit-reverse;
+  animation-duration: 17s;
+}
+
+.splash-orbit-dot {
+  position: absolute;
+  left: 50%;
+  top: -4px;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #e77c5a;
+  box-shadow: 0 0 0 6px rgba(231,124,90,.1), 0 0 18px rgba(231,124,90,.5);
+  transform: translateX(-50%);
+}
+
+.splash-orbit-dot-soft {
+  top: auto;
+  bottom: -3px;
+  width: 6px;
+  height: 6px;
+  background: #7b9b81;
+  box-shadow: 0 0 0 5px rgba(123,155,129,.12), 0 0 16px rgba(123,155,129,.5);
+}
+
+.splash-halo {
+  animation: encore-splash-halo 1.9s 180ms ease-out infinite;
+  transform-origin: center;
 }
 
 .splash-wordmark {
@@ -42,6 +96,23 @@
 .splash-bar {
   animation: encore-splash-wave 760ms ease-in-out infinite;
   transform-origin: center bottom;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .splash-screen {
+    transition-duration: 100ms !important;
+  }
+
+  .splash-mark,
+  .splash-orbit,
+  .splash-halo,
+  .splash-wordmark,
+  .splash-caption,
+  .splash-bar {
+    animation-duration: 1ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+  }
 }
 
 @theme inline {

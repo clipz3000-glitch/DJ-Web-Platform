@@ -670,13 +670,17 @@ function NotFound() {
 }
 
 function StartupSplash({exiting=false}:{exiting?:boolean}) {
-  return <main className={`fixed inset-0 z-[100] grid place-items-center overflow-hidden bg-[#f8f6ef] transition-opacity duration-[380ms] ${exiting?'pointer-events-none opacity-0':'opacity-100'}`} aria-label="Loading Encore">
+  return <main className={`splash-screen fixed inset-0 z-[100] grid place-items-center overflow-hidden bg-[#f8f6ef] transition-opacity duration-[480ms] ${exiting?'pointer-events-none opacity-0':'opacity-100'}`} aria-label="Loading Encore">
     <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_45%,rgba(206,221,202,.62),transparent_38%),radial-gradient(ellipse_at_18%_85%,rgba(231,124,90,.12),transparent_34%)]"/>
-    <div className="absolute left-1/2 top-1/2 h-[min(76vw,34rem)] w-[min(76vw,34rem)] -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#b7c9b6]/40"/>
-    <div className="absolute left-1/2 top-1/2 h-[min(60vw,27rem)] w-[min(60vw,27rem)] -translate-x-1/2 -translate-y-1/2 rounded-full border border-dashed border-[#d3b7a5]/55"/>
+    <div className="splash-orbit absolute left-1/2 top-1/2 h-[min(76vw,34rem)] w-[min(76vw,34rem)] -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#b7c9b6]/40">
+      <span className="splash-orbit-dot"/>
+    </div>
+    <div className="splash-orbit splash-orbit-reverse absolute left-1/2 top-1/2 h-[min(60vw,27rem)] w-[min(60vw,27rem)] -translate-x-1/2 -translate-y-1/2 rounded-full border border-dashed border-[#d3b7a5]/55">
+      <span className="splash-orbit-dot splash-orbit-dot-soft"/>
+    </div>
     <div className="relative flex flex-col items-center text-center" role="status">
       <div className="splash-mark relative grid h-[86px] w-[86px] place-items-center rounded-[28px] bg-[#285a4d] text-[#f8f6ef] shadow-[0_18px_55px_rgba(40,90,77,.25)]">
-        <div className="absolute -inset-3 rounded-[34px] border border-[#739581]/45"/>
+        <div className="splash-halo absolute -inset-3 rounded-[34px] border border-[#739581]/45"/>
         <AudioLines size={35} strokeWidth={1.8}/>
         <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-[#e77c5a] ring-4 ring-[#f8f6ef]"/>
       </div>
@@ -695,8 +699,9 @@ function Router() {
   useEffect(()=>{
     if(auth.loading)return;
     setSplashExiting(false);
-    const exitTimer=window.setTimeout(()=>setSplashExiting(true),420);
-    const hideTimer=window.setTimeout(()=>setSplashVisible(false),820);
+    const reducedMotion=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const exitTimer=window.setTimeout(()=>setSplashExiting(true),reducedMotion?350:1500);
+    const hideTimer=window.setTimeout(()=>setSplashVisible(false),reducedMotion?500:2000);
     return ()=>{window.clearTimeout(exitTimer);window.clearTimeout(hideTimer);};
   },[auth.loading]);
   return <RoutedErrorBoundary>
