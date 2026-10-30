@@ -179,7 +179,7 @@ function Home() {
           <h1 className="serif max-w-[650px] text-[3.45rem] font-semibold leading-[.99] tracking-[-.055em] text-[#25463c] sm:text-[4.4rem] md:text-[5.25rem]">A great night<br/>has a <em className="text-[#df7858]">soundtrack.</em></h1>
           <p className="mt-6 max-w-[490px] text-[1.05rem] leading-7 text-[#697970]">Meet the DJs who know how to read a room. Book with clarity, talk through the details, and get back to planning the good part.</p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row"><a className="btn btn-primary" href="/djs">Find your DJ <ArrowRight size={16}/></a><a className="btn btn-outline" href="/onboarding/dj">I’m a DJ <ArrowDownRight size={16}/></a></div>
-          <div className="mt-9 flex flex-wrap gap-x-7 gap-y-3 text-xs font-semibold text-[#688076]"><span className="inline-flex items-center gap-2"><ShieldCheck size={15} className="text-[#4c7b66}"/>Clear booking steps</span><span className="inline-flex items-center gap-2"><BadgeCheck size={15} className="text-[#4c7b66}"/>Real profiles, real people</span></div>
+          <div className="mt-9 flex flex-wrap gap-x-7 gap-y-3 text-xs font-semibold text-[#688076]"><span className="inline-flex items-center gap-2"><ShieldCheck size={15} className="text-[#4c7b66]"/>Clear booking steps</span><span className="inline-flex items-center gap-2"><BadgeCheck size={15} className="text-[#4c7b66]"/>Real profiles, real people</span></div>
         </div>
         <div className="page-in relative mx-auto w-full max-w-[590px] [animation-delay:120ms]">
           <div className="absolute -left-5 top-12 h-24 w-24 rounded-full border border-[#e4a58d]/55 md:-left-10"/>
@@ -232,7 +232,7 @@ function Browse() {
   return <Layout><div className="mx-auto min-h-[65vh] max-w-[1280px] px-5 py-12 md:px-9 md:py-16">
     <p className="eyebrow">The Encore directory</p><div className="mt-3 flex flex-col justify-between gap-4 md:flex-row md:items-end"><div><h1 className="serif text-4xl font-semibold tracking-[-.04em] text-[#29483e] md:text-5xl">Find your sound.</h1><p className="mt-3 text-[#718078]">Search by location, genre, or the event you’re dreaming up.</p></div><span className="status-pill inline-flex w-fit items-center gap-2"><ShieldCheck size={14}/>Profiles shown when verified</span></div>
     <div className="mt-9 grid gap-3 rounded-2xl border border-[#e3dfd3] bg-[#f1efe7] p-3 md:grid-cols-[1.5fr_1fr_1fr_1fr_auto]">
-      <label className="relative"><span className="sr-only">Search DJs</span><Search size={17} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#728078]"/><input className="field !pl-11" placeholder="Name, genre, or event" value={query} onChange={e=>setQuery(e.target.value)} data-testid="input-dj-search"/></label>
+      <label className="relative"><span className="sr-only">Search DJs</span><Search size={17} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#728078]"/><input className="field !pl-11" placeholder="DJ name" value={query} onChange={e=>setQuery(e.target.value)} data-testid="input-dj-search"/></label>
       <label className="relative"><span className="sr-only">City</span><MapPin size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#728078]"/><input className="field !pl-10" placeholder="City or region" value={city} onChange={e=>setCity(e.target.value)} data-testid="input-city"/></label>
       <label><span className="sr-only">Genre</span><select value={genre} onChange={e=>setGenre(e.target.value)} className="field appearance-none" data-testid="select-genre"><option value="">Any sound</option><option>House</option><option>Disco</option><option>Hip-hop</option><option>Open format</option><option>Afrobeats</option></select></label>
       <label><span className="sr-only">Event type</span><select value={eventType} onChange={e=>setEventType(e.target.value)} className="field appearance-none" data-testid="select-event-type-filter"><option value="">Any event</option><option>Wedding</option><option>Private party</option><option>Corporate event</option><option>Community event</option></select></label>
@@ -397,6 +397,7 @@ function AuthPage({ signup = false }: {signup?:boolean}) {
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState('');
   const [notice,setNotice]=useState('');
+  const [pendingEmail,setPendingEmail]=useState('');
   const onSubmit=async(event:FormEvent<HTMLFormElement>)=>{
     event.preventDefault();setError('');setNotice('');
     if(!auth.configured){setError('Authentication is unavailable until Supabase is configured.');return;}
@@ -404,13 +405,25 @@ function AuthPage({ signup = false }: {signup?:boolean}) {
     try{
       if(signup){
         const result=await auth.signUp(email,password,role,displayName);
-        if(result.confirmationRequired){setNotice('Check your email to confirm your account. Your profile will be ready after confirmation.');}
+        if(result.confirmationRequired){setPendingEmail(email.trim());setNotice('Check your inbox to confirm your account. The email can take a few minutes; check your spam folder too.');}
         else setLocation(role==='dj'?'/onboarding/dj':'/onboarding/host');
       }else{
         await auth.signIn(email,password);
         setLocation('/dashboard');
       }
-    }catch(err){setError(errorMessage(err));}
+    }catch(err){
+      const message=errorMessage(err);
+      if(/email not confirmed/i.test(message)){setPendingEmail(email.trim());setError('Please confirm your email address before signing in. Check your inbox, or resend the confirmation email below.');}
+      else setError(message);
+    }
+    finally{setBusy(false);}
+  };
+  const onResend=async()=>{
+    setError('');setNotice('');
+    if(!pendingEmail){setError('Enter your email address first.');return;}
+    setBusy(true);
+    try{await auth.resendConfirmation(pendingEmail);setNotice(`We sent a new confirmation email to ${pendingEmail}.`);}
+    catch(err){setError(errorMessage(err));}
     finally{setBusy(false);}
   };
   const onReset=async()=>{
@@ -425,9 +438,10 @@ function AuthPage({ signup = false }: {signup?:boolean}) {
   return <Layout><div className="mx-auto grid min-h-[72vh] max-w-[1050px] items-center gap-8 px-5 py-10 md:grid-cols-[.9fr_1.1fr] md:px-9">
     <div className="hidden rounded-[26px] bg-[#244b40] p-9 text-[#f5f0df] md:block"><div className="grid h-12 w-12 place-items-center rounded-2xl border border-[#8ca397]/40 text-[#e1a181]"><AudioLines/></div><p className="eyebrow mt-12 !text-[#bbcabf]">Meet the moment</p><h2 className="serif mt-3 text-4xl leading-tight">Good music.<br/><em>Good people.</em><br/>Better nights.</h2><p className="mt-4 max-w-sm text-sm leading-6 text-[#c1d0c5]">A considered way to find, book, and work with DJs who fit your event.</p></div>
     <div className="soft-card mx-auto w-full max-w-md p-6 sm:p-9"><p className="eyebrow">{signup ? 'Start with Encore' : 'Welcome back'}</p><h1 className="serif mt-2 text-3xl font-semibold text-[#29483e]">{signup ? 'Make room for a good night.' : 'Pick up where you left off.'}</h1><p className="mt-2 text-sm text-[#718078]">{signup ? 'Create an account to plan an event or build your DJ profile.' : 'Sign in to manage your bookings and conversations.'}</p>
-       {!auth.configured&&<div className="mt-6 rounded-xl border border-[#e7d7c9] bg-[#fbf1e9] p-4 text-xs leading-5 text-[#795d4e]"><strong>Supabase setup needed</strong><br/>Add SUPABASE_URL and SUPABASE_ANON_KEY as Replit Secrets to enable secure sign-in.</div>}
+       {!auth.configured&&<div className="mt-6 rounded-xl border border-[#e7d7c9] bg-[#fbf1e9] p-4 text-xs leading-5 text-[#795d4e]"><strong>Supabase setup needed</strong><br/>Supabase is not connected yet. Add its project URL and anon key to the project's environment settings to enable secure sign-in.</div>}
        {error&&<div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800" role="alert">{error}</div>}
        {notice&&<div className="mt-4 rounded-xl border border-[#d9e4d7] bg-[#eef4eb] p-3 text-sm text-[#3c604b]" role="status">{notice}</div>}
+       {pendingEmail&&!busy&&<button type="button" onClick={()=>void onResend()} className="mt-3 w-full text-center text-sm font-bold text-[#42685a] underline decoration-[#a9bcae] underline-offset-4" data-testid="button-resend-confirmation">Resend confirmation email</button>}
        <form className="mt-6 grid gap-4" onSubmit={onSubmit}>{signup&&<label><span className="label">Your name</span><input className="field" type="text" autoComplete="name" value={displayName} onChange={e=>setDisplayName(e.target.value)} required maxLength={80} data-testid="input-display-name"/></label>}<label><span className="label">Email address</span><input className="field" type="email" autoComplete="email" placeholder="you@example.com" value={email} onChange={e=>setEmail(e.target.value)} required data-testid="input-email"/></label><label><span className="label">Password</span><input className="field" type="password" autoComplete={signup?'new-password':'current-password'} placeholder={signup?'At least 8 characters':'Your password'} value={password} onChange={e=>setPassword(e.target.value)} required minLength={signup?8:1} data-testid="input-password"/></label>{signup && <label><span className="label">I’m here as</span><select className="field" value={role} onChange={e=>setRole(e.target.value as 'host'|'dj')} data-testid="select-account-role"><option value="host">Planning an event</option><option value="dj">A DJ looking for bookings</option></select></label>}<button type="submit" disabled={!auth.configured||busy} className="btn btn-primary mt-1 w-full disabled:opacity-55" data-testid="button-auth-submit">{busy?'Please wait…':signup?'Create account':'Sign in'}</button></form>
        {!signup&&<button type="button" onClick={()=>void onReset()} disabled={!auth.configured||busy} className="mt-4 w-full text-center text-sm font-bold text-[#42685a] underline decoration-[#a9bcae] underline-offset-4 disabled:opacity-50" data-testid="button-reset-password">Forgot password?</button>}
       <p className="mt-6 text-center text-sm text-[#718078]">{signup ? 'Already have an account?' : 'New to Encore?'} <a className="font-extrabold text-[#42685a] underline decoration-[#a9bcae] underline-offset-4" href={signup?'/login':'/signup'}>{signup?'Log in':'Create an account'}</a></p>
@@ -519,7 +533,7 @@ function Onboarding({dj=false}:{dj?:boolean}) {
     }catch(err){setError(errorMessage(err));}
     finally{setBusy(false);}
   };
-  if(!hasSupabase)return <Layout><div className="mx-auto max-w-[1000px] px-5 py-12 md:px-9"><p className="eyebrow">{dj?'For DJs':'For hosts'}</p><h1 className="serif mt-3 text-4xl font-semibold text-[#29483e]">{dj?'Put your sound out there.':'Plan the night you want.'}</h1><div className="mt-7 soft-card"><Notice title="Account setup is waiting for Supabase" description="Add the Supabase project URL and anon key to Replit Secrets to create accounts and save profiles." icon={dj?<Headphones size={22}/>:<CalendarDays size={22}/>} /></div></div></Layout>;
+  if(!hasSupabase)return <Layout><div className="mx-auto max-w-[1000px] px-5 py-12 md:px-9"><p className="eyebrow">{dj?'For DJs':'For hosts'}</p><h1 className="serif mt-3 text-4xl font-semibold text-[#29483e]">{dj?'Put your sound out there.':'Plan the night you want.'}</h1><div className="mt-7 soft-card"><Notice title="Account setup is waiting for Supabase" description="Connect Supabase (project URL and anon key) to create accounts and save profiles." icon={dj?<Headphones size={22}/>:<CalendarDays size={22}/>} /></div></div></Layout>;
   if(!auth.user)return <Layout><div className="mx-auto max-w-[1000px] px-5 py-12 md:px-9"><p className="eyebrow">{dj?'For DJs':'For hosts'}</p><h1 className="serif mt-3 text-4xl font-semibold text-[#29483e]">{dj?'Put your sound out there.':'Plan the night you want.'}</h1><div className="mt-7 soft-card p-7 text-center"><p className="text-sm text-[#718078]">Sign in or create an account to save your profile details.</p><a href="/signup" className="btn btn-primary mt-5">Create your account <ArrowRight size={15}/></a></div></div></Layout>;
   return <Layout><div className="mx-auto max-w-[1000px] px-5 py-12 md:px-9 md:py-16"><p className="eyebrow">{dj?'For DJs':'For hosts'}</p><div className="mt-3 grid gap-8 md:grid-cols-[1fr_.7fr]"><section><h1 className="serif text-4xl font-semibold leading-tight text-[#29483e] md:text-5xl">{dj?'Put your sound out there.':'Plan the night you want.'}</h1><p className="mt-4 max-w-xl leading-7 text-[#718078]">{dj?'Build a profile that helps the right events find you, with your genres, experience, and availability up front.':'Tell us a little about who is planning your event.'}</p>
     {auth.role!==(dj?'dj':'host')?<div className="mt-7 soft-card p-5"><Notice title="This profile type doesn’t match your account" description="Create a new account with the matching host or DJ role to continue." icon={<LockKeyhole size={22}/>} /></div>:<form className="mt-7 soft-card grid gap-4 p-5 sm:grid-cols-2 sm:p-7" onSubmit={save}>
@@ -593,7 +607,7 @@ function Dashboard({section='Overview'}:{section?:string}) {
   const formatWhen=(value:string)=>new Intl.DateTimeFormat('en-GB',{dateStyle:'medium',timeStyle:'short'}).format(new Date(value));
   const statusClass=(status:string)=>status==='confirmed'||status==='completed'?'bg-[#e5f0e4] text-[#3c684f]':status==='declined'||status==='cancelled'||status==='refunded'?'bg-[#f5e8e1] text-[#8a5847]':status==='accepted'?'bg-[#e8edf4] text-[#4c6280]':'bg-[#f5efdc] text-[#806b35]';
 
-  if(!hasSupabase)return <Layout><div className="mx-auto max-w-[1000px] px-5 py-12 md:px-9"><div className="soft-card"><Notice title="Your workspace is waiting" description="Add the Supabase project URL and anon key as Replit Secrets, then apply the database migration to load account and booking data." icon={<AudioLines size={22}/>} /></div></div></Layout>;
+  if(!hasSupabase)return <Layout><div className="mx-auto max-w-[1000px] px-5 py-12 md:px-9"><div className="soft-card"><Notice title="Your workspace is waiting" description="Connect Supabase (project URL and anon key), then apply the database migration to load account and booking data." icon={<AudioLines size={22}/>} /></div></div></Layout>;
   if(auth.loading)return <Layout><div className="mx-auto max-w-[1000px] px-5 py-20 text-center"><div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-[#42685a] border-t-transparent"/><p className="mt-4 text-sm text-[#718078]">Loading your workspace…</p></div></Layout>;
   if(!auth.user)return <Layout><div className="mx-auto max-w-[850px] px-5 py-16"><div className="soft-card"><Notice title="Sign in to open your workspace" description="Your bookings, messages, and saved DJs are private to your account. Sign in to continue." icon={<LockKeyhole size={22}/>} /><div className="-mt-7 pb-7 text-center"><a href="/login" className="btn btn-primary">Sign in <ArrowRight size={15}/></a></div></div></div></Layout>;
   if(!role)return <Layout><div className="mx-auto max-w-[850px] px-5 py-16"><div className="soft-card"><Notice title="Your profile is still being prepared" description="Your account exists, but its marketplace profile is not ready yet. Refresh shortly or contact support if this continues." icon={<Clock3 size={22}/>} /></div></div></Layout>;
@@ -617,7 +631,7 @@ function Dashboard({section='Overview'}:{section?:string}) {
   if(!auth.user)return <Layout><div className="mx-auto max-w-[850px] px-5 py-16"><div className="soft-card"><Notice title="Sign in to open your workspace" description="Your bookings, messages, and saved DJs are private to your account. Sign in to continue." icon={<LockKeyhole size={22}/>} /><div className="-mt-7 pb-7 text-center"><a href="/login" className="btn btn-primary">Sign in <ArrowRight size={15}/></a></div></div></div></Layout>;
   if(auth.loading)return <Layout><div className="mx-auto max-w-[1000px] px-5 py-20 text-center"><div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-[#42685a] border-t-transparent"/><p className="mt-4 text-sm text-[#718078]">Loading your workspace…</p></div></Layout>;
   if(!role)return <Layout><div className="mx-auto max-w-[850px] px-5 py-16"><div className="soft-card"><Notice title="Your profile is still being prepared" description={auth.error||"Your account exists, but its marketplace profile is not ready yet. Refresh shortly or contact support if this continues."} icon={<Clock3 size={22}/>} /></div></div></Layout>;
-  if(!hasSupabase)return <Layout><div className="mx-auto max-w-[1000px] px-5 py-12 md:px-9"><div className="soft-card"><Notice title="Your workspace is waiting" description="Add the Supabase project URL and anon key as Replit Secrets, then apply the database migration to load account and booking data." icon={<AudioLines size={22}/>} /></div></div></Layout>;
+  if(!hasSupabase)return <Layout><div className="mx-auto max-w-[1000px] px-5 py-12 md:px-9"><div className="soft-card"><Notice title="Your workspace is waiting" description="Connect Supabase (project URL and anon key), then apply the database migration to load account and booking data." icon={<AudioLines size={22}/>} /></div></div></Layout>;
   const initialError=bookingsQuery.error||conversationsQuery.error||notificationsQuery.error;
   if(initialError)return <Layout><div className="mx-auto max-w-[1000px] px-5 py-12 md:px-9"><div className="soft-card"><Notice title="We couldn’t load your workspace" description={errorMessage(initialError)} icon={<Disc3 size={22}/>} /></div></div></Layout>;
   return <Layout><div className="mx-auto max-w-[1280px] px-5 py-9 md:px-9 md:py-12">

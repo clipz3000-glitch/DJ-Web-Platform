@@ -34,6 +34,7 @@ type AuthContextValue = {
     role: 'host' | 'dj',
     displayName: string,
   ) => Promise<{ confirmationRequired: boolean }>;
+  resendConfirmation: (email: string) => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   updatePassword: (password: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -156,6 +157,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [],
   );
 
+  const resendConfirmation = useCallback(async (email: string) => {
+    if (!supabase) throw new Error('Email confirmation is unavailable until Supabase is configured.');
+    const redirectTo = `${window.location.origin}${import.meta.env.BASE_URL}`;
+    const { error: resendError } = await supabase.auth.resend({
+      type: 'signup',
+      email,
+      options: { emailRedirectTo: redirectTo },
+    });
+    if (resendError) throw resendError;
+  }, []);
+
   const resetPassword = useCallback(async (email: string) => {
     if (!supabase) throw new Error('Password reset is unavailable until Supabase is configured.');
     const redirectTo = `${window.location.origin}${import.meta.env.BASE_URL}reset-password`;
@@ -189,12 +201,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       error,
       signIn,
       signUp,
+      resendConfirmation,
       resetPassword,
       updatePassword,
       signOut,
       refreshProfile,
     }),
-    [loading, session?.user, profile, role, error, signIn, signUp, resetPassword, updatePassword, signOut, refreshProfile],
+    [loading, session?.user, profile, role, error, signIn, signUp, resendConfirmation, resetPassword, updatePassword, signOut, refreshProfile],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

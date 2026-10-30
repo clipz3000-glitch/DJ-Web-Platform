@@ -22,7 +22,7 @@ export const supabase = isSupabaseConfigured
 export function requireSupabase() {
   if (!supabase) {
     throw new Error(
-      'Supabase is not configured. Add SUPABASE_URL and SUPABASE_ANON_KEY in Replit Secrets.',
+      'Supabase is not configured. Add the Supabase project URL and anon key to the environment settings.',
     );
   }
   return supabase;
