@@ -3,6 +3,7 @@ modules = ["nodejs-24"]
 [deployment]
 router = "application"
 deploymentTarget = "autoscale"
+build = ["sh", "-c", "pnpm install --frozen-lockfile && pnpm run build"]
 
 [deployment.postBuild]
 args = ["pnpm", "store", "prune"]
